@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Natteravnene Rådal – Statistikk</title>
+<script src="data.js"></script>
+<style>
+  :root{
+    --gul: #FFD400;
+    --morkgra: #3A3A3A;
+    --gra: #6B6B6B;
+    --lysgra: #ECECEC;
+    --bakgrunn: #F6F6F4;
+    --kort-bg: #FFFFFF;
+    --rod: #E4574C;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bakgrunn);
+    color: var(--morkgra);
+  }
+  header.topbar {
+    background: var(--morkgra);
+    color: #fff;
+    padding: 22px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  header.topbar .brand { display: flex; align-items: center; gap: 14px; }
+  header.topbar .brand .dot {
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--gul);
+    box-shadow: 0 0 0 4px rgba(255,212,0,0.25);
+  }
+  header.topbar h1 { font-size: 20px; margin: 0; font-weight: 600; }
+  header.topbar .subtitle { font-size: 13px; color: #C8C8C8; margin-top: 2px; }
+
+  nav.tabs {
+    display: flex;
+    gap: 4px;
+    padding: 0 32px;
+    background: #fff;
+    border-bottom: 1px solid var(--lysgra);
+    overflow-x: auto;
+  }
+  nav.tabs button {
+    border: none;
+    background: none;
+    padding: 16px 18px;
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--gra);
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    white-space: nowrap;
+  }
+  nav.tabs button:hover { color: var(--morkgra); }
+  nav.tabs button.active { color: var(--morkgra); border-bottom-color: var(--gul); }
+
+  main { padding: 24px 32px 60px; max-width: 1400px; margin: 0 auto; }
+
+  .filterbar { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+  .filter-card {
+    background: var(--kort-bg);
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 200px;
+  }
+  .filter-card label { font-size: 12px; font-weight: 700; color: var(--gra); }
+  .filter-card select, .filter-card input[type=date] {
+    border: 1px solid var(--lysgra);
+    border-radius: 8px;
+    padding: 7px 10px;
+    font-size: 14px;
+    color: var(--morkgra);
+    background: #fff;
+  }
+  .filter-card .daterow { display: flex; gap: 8px; align-items: center; }
+
+  .panel-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+  .panel-grid.two { grid-template-columns: 1fr 1fr; }
+  @media (max-width: 900px) { .panel-grid.two { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--kort-bg);
+    border-radius: 18px;
+    padding: 22px 24px 18px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+  }
+  .card h2 { font-size: 17px; font-weight: 700; margin: 0 0 2px; color: var(--morkgra); }
+  .card .card-sub { font-size: 13px; color: var(--gra); margin-bottom: 14px; }
+  .chart-wrap { position: relative; width: 100%; }
+  .chart-wrap.tall { height: 340px; }
+  .chart-wrap.short { height: 260px; }
+  .chart-wrap canvas { display: block; }
+
+  table.stat-table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 8px; }
+  table.stat-table th, table.stat-table td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--lysgra); }
+  table.stat-table th { color: var(--gra); font-weight: 700; font-size: 12.5px; }
+  table.stat-table td.num, table.stat-table th.num { text-align: right; }
+  table.stat-table tr.total td { font-weight: 700; }
+
+  .tabpage { display: none; }
+  .tabpage.active { display: block; }
+
+  footer { text-align: center; padding: 24px; font-size: 12px; color: #A3A3A3; }
+
+  .legend-row { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 8px; font-size: 13px; color: var(--gra); }
+  .legend-row span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="dot"></div>
+    <div>
+      <h1>Natteravnene Rådal</h1>
+      <div class="subtitle">Oppmøtestatistikk for natteravning</div>
+    </div>
+  </div>
+  <div class="subtitle" id="generertVisning"></div>
+</header>
+
+<nav class="tabs" id="tabNav">
+  <button data-tab="skole" class="active">Oppmøte pr skole</button>
+  <button data-tab="ravning">Oppmøte pr ravning</button>
+  <button data-tab="ukedag">Oppmøte pr ukedag</button>
+  <button data-tab="historisk">Historisk oppmøte</button>
+  <button data-tab="mc">MC-ravning</button>
+</nav>
+
+<main>
+
+  <div class="filterbar">
+    <div class="filter-card">
+      <label for="sesongSelect">Sesong</label>
+      <select id="sesongSelect"></select>
+    </div>
+    <div class="filter-card">
+      <label>Dato</label>
+      <div class="daterow">
+        <input type="date" id="datoFra">
+        <span style="color:var(--gra)">–</span>
+        <input type="date" id="datoTil">
+      </div>
+    </div>
+  </div>
+
+  <section class="tabpage active" id="tab-skole">
+    <div class="card">
+      <h2>Oppmøte pr skole</h2>
+      <div class="card-sub" id="skoleSub"></div>
+      <div class="chart-wrap tall"><canvas id="chartSkole"></canvas></div>
+    </div>
+  </section>
+
+  <section class="tabpage" id="tab-ravning">
+    <div class="card" style="margin-bottom:20px;">
+      <h2>Oppmøte pr ravning</h2>
+      <div class="card-sub" id="ravningSub">Antall ravner møtt pr vaktdato</div>
+      <div class="legend-row" id="ravningLegend"></div>
+      <div class="chart-wrap tall"><canvas id="chartRavning"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>Oppsummering pr kategori</h2>
+      <div class="card-sub">Innkalt, møtt og gjennomsnitt pr vakt</div>
+      <table class="stat-table" id="ravningTabell">
+        <thead><tr><th>Kategori</th><th class="num">Innkalt</th><th class="num">Møtt</th><th class="num">Gj.snitt pr vakt</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="tabpage" id="tab-ukedag">
+    <div class="panel-grid two">
+      <div class="card">
+        <h2>Oppmøte % pr ukedag</h2>
+        <div class="card-sub">Foreldrevakter</div>
+        <div class="chart-wrap short"><canvas id="chartUkedagProsent"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>Oppmøte antall pr ukedag</h2>
+        <div class="card-sub">Foreldrevakter</div>
+        <div class="chart-wrap short"><canvas id="chartUkedagAntall"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="tabpage" id="tab-historisk">
+    <div class="card-sub" style="margin-bottom: 10px; color: var(--gra); font-size:13px;">
+      Historikken bruker eget datofilter (alle sesonger vises uavhengig av sesongvalg over).
+    </div>
+    <div class="filterbar" style="margin-bottom: 16px;">
+      <div class="filter-card">
+        <label>Dato (historikk)</label>
+        <div class="daterow">
+          <input type="date" id="histFra">
+          <span style="color:var(--gra)">–</span>
+          <input type="date" id="histTil">
+        </div>
+      </div>
+      <div class="filter-card">
+        <label>Semester</label>
+        <div style="display:flex; gap:14px; align-items:center; font-size:14px; padding-top:4px;">
+          <label style="display:flex; align-items:center; gap:6px; font-weight:400; font-size:14px;"><input type="checkbox" id="semHost" checked> Høst</label>
+          <label style="display:flex; align-items:center; gap:6px; font-weight:400; font-size:14px;"><input type="checkbox" id="semVar" checked> Vår</label>
+        </div>
+      </div>
+    </div>
+    <div class="panel-grid two">
+      <div class="card">
+        <h2>Historisk oppmøte</h2>
+        <div class="card-sub">Pr halvår, foreldrevakter</div>
+        <div class="chart-wrap short"><canvas id="chartHistorisk"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>Historisk oppmøte</h2>
+        <div class="card-sub">Snitt vår vs. høst</div>
+        <div class="chart-wrap short"><canvas id="chartHistoriskSemester"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="tabpage" id="tab-mc">
+    <div class="panel-grid two" style="margin-bottom:20px;">
+      <div class="card">
+        <h2>MC-ravning – Oppmøte pr halvår</h2>
+        <div class="card-sub">Alle sesonger</div>
+        <div class="chart-wrap short"><canvas id="chartMcHalvaar"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>MC-ravning – Oppmøte pr ukedag</h2>
+        <div class="card-sub" id="mcUkedagSub"></div>
+        <div class="chart-wrap short"><canvas id="chartMcUkedag"></canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>MC-ravning – oppmøte over tid</h2>
+      <div class="card-sub" id="mcTidSub"></div>
+      <div class="chart-wrap tall"><canvas id="chartMcTid"></canvas></div>
+    </div>
+  </section>
+
+</main>
+
+<footer>Natteravnene Rådal · Statistikk generert fra Excel-datakilde</footer>
+
+<script>
+/* ============================================================
+   MINI CHART-BIBLIOTEK (ren Canvas, ingen eksterne avhengigheter)
+   ============================================================ */
+const GUL = '#FFD400';
+const MORK = '#3A3A3A';
+const GRA = '#8C8C8C';
+const ROD = '#E4574C';
+const FARGER_KATEGORI = { 'Foreldre': '#FFD400', 'Frivillige': '#5B9BD5', 'MC ravn': '#70AD47' };
+
+function setupCanvas(canvas){
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const w = Math.max(rect.width, 50);
+  const h = Math.max(rect.height, 50);
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,w,h);
+  return {ctx, w, h};
+}
+
+function niceMax(v){
+  if(v <= 0) return 10;
+  const mag = Math.pow(10, Math.floor(Math.log10(v)));
+  const norm = v / mag;
+  let step;
+  if(norm <= 1) step = 1;
+  else if(norm <= 2) step = 2;
+  else if(norm <= 5) step = 5;
+  else step = 10;
+  return step * mag;
+}
+
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+
+// ---- Bar chart ----
+function drawBarChart(canvasId, opts){
+  const canvas = document.getElementById(canvasId);
+  if(!canvas) return;
+  const {ctx, w, h} = setupCanvas(canvas);
+  const labels = opts.labels || [];
+  const values = opts.values || [];
+  const suffix = opts.suffix || '';
+  const color = opts.color || GUL;
+  const maxYraw = opts.maxY || niceMax(Math.max(1, ...values) * 1.25);
+  const refValue = opts.refValue;
+  const refLabel = opts.refLabel;
+
+  const rotateLabels = labels.some(l => (''+l).length > 8) || labels.length > 7;
+  const padLeft = 44, padRight = 14, padTop = 30, padBottom = rotateLabels ? 56 : 34;
+  const plotW = w - padLeft - padRight;
+  const plotH = h - padTop - padBottom;
+
+  ctx.font = '11px Segoe UI';
+  ctx.fillStyle = GRA;
+  ctx.strokeStyle = '#eee';
+  ctx.lineWidth = 1;
+
+  // gridlines + y labels
+  const steps = 4;
+  for(let i=0;i<=steps;i++){
+    const val = maxYraw * i/steps;
+    const y = padTop + plotH - (val/maxYraw)*plotH;
+    ctx.beginPath();
+    ctx.moveTo(padLeft, y);
+    ctx.lineTo(padLeft+plotW, y);
+    ctx.stroke();
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(Math.round(val) + suffix, padLeft-8, y);
+  }
+
+  // bars
+  const n = values.length;
+  const slot = plotW / n;
+  const barW = Math.min(slot*0.55, 70);
+  values.forEach((val,i) => {
+    const bh = (val/maxYraw) * plotH;
+    const x = padLeft + slot*i + slot/2 - barW/2;
+    const y = padTop + plotH - bh;
+    ctx.fillStyle = color;
+    roundRect(ctx, x, y, barW, bh, 4);
+    ctx.fill();
+
+    // value label pill
+    const text = Math.round(val*10)/10 + suffix;
+    ctx.font = '600 11px Segoe UI';
+    const tw = ctx.measureText(text).width + 12;
+    const py = Math.max(y - 24, padTop);
+    ctx.fillStyle = 'rgba(80,80,80,0.88)';
+    roundRect(ctx, x+barW/2-tw/2, py, tw, 20, 5);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, x+barW/2, py+10);
+
+    // x label
+    ctx.fillStyle = MORK;
+    ctx.font = '11px Segoe UI';
+    ctx.textAlign = rotateLabels ? 'right' : 'center';
+    const lx = padLeft + slot*i + slot/2;
+    const ly = padTop + plotH + 16;
+    if(rotateLabels){
+      ctx.save();
+      ctx.translate(lx, ly);
+      ctx.rotate(-Math.PI/5);
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(labels[i], 0, 0);
+      ctx.restore();
+    } else {
+      ctx.textBaseline = 'top';
+      ctx.fillText(labels[i], lx, ly);
+    }
+  });
+
+  // reference dashed line
+  if(refValue !== undefined && refValue !== null){
+    const y = padTop + plotH - (refValue/maxYraw)*plotH;
+    ctx.save();
+    ctx.strokeStyle = ROD;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6,4]);
+    ctx.beginPath();
+    ctx.moveTo(padLeft, y);
+    ctx.lineTo(padLeft+plotW, y);
+    ctx.stroke();
+    ctx.restore();
+    if(refLabel){
+      ctx.fillStyle = ROD;
+      ctx.font = '600 11px Segoe UI';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(refLabel, padLeft+plotW, y-4);
+    }
+  }
+
+  // axis line
+  ctx.strokeStyle = '#ddd';
+  ctx.beginPath();
+  ctx.moveTo(padLeft, padTop+plotH);
+  ctx.lineTo(padLeft+plotW, padTop+plotH);
+  ctx.stroke();
+}
+
+// ---- Line chart (multi-series, with null gaps) ----
+function drawLineChart(canvasId, opts){
+  const canvas = document.getElementById(canvasId);
+  if(!canvas) return;
+  const {ctx, w, h} = setupCanvas(canvas);
+  const labels = opts.labels || [];
+  const series = opts.series || [];
+
+  let maxVal = 1;
+  series.forEach(s => s.values.forEach(v => { if(v !== null && v > maxVal) maxVal = v; }));
+  const maxY = niceMax(maxVal * 1.2);
+
+  const padLeft = 44, padRight = 14, padTop = 20, padBottom = 46;
+  const plotW = w - padLeft - padRight;
+  const plotH = h - padTop - padBottom;
+  const n = labels.length;
+
+  ctx.font = '11px Segoe UI';
+  ctx.strokeStyle = '#eee';
+  ctx.fillStyle = GRA;
+
+  const steps = 4;
+  for(let i=0;i<=steps;i++){
+    const val = maxY*i/steps;
+    const y = padTop + plotH - (val/maxY)*plotH;
+    ctx.beginPath();
+    ctx.moveTo(padLeft,y);
+    ctx.lineTo(padLeft+plotW,y);
+    ctx.stroke();
+    ctx.textAlign='right'; ctx.textBaseline='middle';
+    ctx.fillText(Math.round(val), padLeft-8, y);
+  }
+
+  // x labels (skip to avoid overlap)
+  const maxLabels = Math.max(4, Math.floor(plotW / 60));
+  const labelStep = Math.max(1, Math.ceil(n / maxLabels));
+  ctx.fillStyle = MORK;
+  ctx.font = '10px Segoe UI';
+  for(let i=0;i<n;i+=labelStep){
+    const x = n<=1 ? padLeft+plotW/2 : padLeft + (plotW*i/(n-1));
+    ctx.save();
+    ctx.translate(x, padTop+plotH+14);
+    ctx.rotate(-Math.PI/4);
+    ctx.textAlign='right'; ctx.textBaseline='middle';
+    ctx.fillText(labels[i], 0, 0);
+    ctx.restore();
+  }
+
+  // series lines
+  series.forEach(s => {
+    ctx.strokeStyle = s.color;
+    ctx.fillStyle = s.color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    let started = false;
+    s.values.forEach((val,i) => {
+      if(val === null || val === undefined){ started = false; return; }
+      const x = n<=1 ? padLeft+plotW/2 : padLeft + (plotW*i/(n-1));
+      const y = padTop + plotH - (val/maxY)*plotH;
+      if(!started){ ctx.moveTo(x,y); started = true; } else { ctx.lineTo(x,y); }
+    });
+    ctx.stroke();
+    s.values.forEach((val,i) => {
+      if(val === null || val === undefined) return;
+      const x = n<=1 ? padLeft+plotW/2 : padLeft + (plotW*i/(n-1));
+      const y = padTop + plotH - (val/maxY)*plotH;
+      ctx.beginPath();
+      ctx.arc(x,y,2.5,0,Math.PI*2);
+      ctx.fill();
+    });
+  });
+
+  ctx.strokeStyle = '#ddd';
+  ctx.beginPath();
+  ctx.moveTo(padLeft, padTop+plotH);
+  ctx.lineTo(padLeft+plotW, padTop+plotH);
+  ctx.stroke();
+}
+
+/* ============================================================
+   DATA / FILTER
+   ============================================================ */
+const UKEDAG_NAVN = ['Søndag','Mandag','Tirsdag','Onsdag','Torsdag','Fredag','Lørdag'];
+function expandRow(row){
+  const [datoInt, skoleIdx, katIdx, innkalt, mott, sesongIdx] = row;
+  const ds = String(datoInt);
+  const isoDato = ds.slice(0,4) + '-' + ds.slice(4,6) + '-' + ds.slice(6,8);
+  const sesong = RAVNEDATA.sesongRekkefolge[sesongIdx];
+  const [semester, aarStr] = sesong.split(' ');
+  const d = new Date(isoDato + 'T00:00:00');
+  return {
+    dato: isoDato,
+    ukedag: UKEDAG_NAVN[d.getDay()],
+    skole: skoleIdx >= 0 ? RAVNEDATA.skoleRekkefolge[skoleIdx] : null,
+    kategori: RAVNEDATA.kategoriListe[katIdx],
+    innkalt: innkalt,
+    mott: mott,
+    aar: parseInt(aarStr, 10),
+    semester: semester,
+    sesong: sesong
+  };
+}
+const DATA = RAVNEDATA.rows.map(expandRow);
+const SKOLE_ORDER = RAVNEDATA.skoleRekkefolge;
+const SESONG_ORDER = RAVNEDATA.sesongRekkefolge;
+document.getElementById('generertVisning').textContent = 'Data oppdatert: ' + RAVNEDATA.generert;
+
+function currentFilter(){
+  return {
+    sesong: document.getElementById('sesongSelect').value,
+    fra: document.getElementById('datoFra').value,
+    til: document.getElementById('datoTil').value
+  };
+}
+function filteredData(){
+  const {fra, til} = currentFilter();
+  return DATA.filter(r => (!fra || r.dato >= fra) && (!til || r.dato <= til));
+}
+function pct(mott, innkalt){ if(!innkalt) return 0; return Math.round((mott/innkalt)*1000)/10; }
+
+const sesongSelect = document.getElementById('sesongSelect');
+SESONG_ORDER.forEach(s => {
+  const opt = document.createElement('option');
+  opt.value = s; opt.textContent = s;
+  sesongSelect.appendChild(opt);
+});
+let defaultSeason = SESONG_ORDER[SESONG_ORDER.length-1];
+for(let i = SESONG_ORDER.length-1; i>=0; i--){
+  if(DATA.some(r => r.sesong === SESONG_ORDER[i] && r.mott !== null)){ defaultSeason = SESONG_ORDER[i]; break; }
+}
+sesongSelect.value = defaultSeason;
+
+function seasonBounds(sesong){
+  const rows = DATA.filter(r => r.sesong === sesong);
+  if(!rows.length) return null;
+  let min = rows[0].dato, max = rows[0].dato;
+  rows.forEach(r => { if(r.dato < min) min = r.dato; if(r.dato > max) max = r.dato; });
+  return {min, max};
+}
+function applySeasonToDateInputs(){
+  const b = seasonBounds(sesongSelect.value);
+  if(b){ document.getElementById('datoFra').value = b.min; document.getElementById('datoTil').value = b.max; }
+}
+applySeasonToDateInputs();
+
+sesongSelect.addEventListener('change', () => { applySeasonToDateInputs(); renderAll(); });
+document.getElementById('datoFra').addEventListener('change', renderAll);
+document.getElementById('datoTil').addEventListener('change', renderAll);
+
+let allMin = DATA[0].dato, allMax = DATA[0].dato;
+DATA.forEach(r => { if(r.dato < allMin) allMin = r.dato; if(r.dato > allMax) allMax = r.dato; });
+document.getElementById('histFra').value = allMin;
+document.getElementById('histTil').value = allMax;
+document.getElementById('histFra').addEventListener('change', renderHistorisk);
+document.getElementById('histTil').addEventListener('change', renderHistorisk);
+document.getElementById('semHost').addEventListener('change', renderHistorisk);
+document.getElementById('semVar').addEventListener('change', renderHistorisk);
+
+document.querySelectorAll('#tabNav button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#tabNav button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.tabpage').forEach(p => p.classList.remove('active'));
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    renderAll(); renderHistorisk();
+  });
+});
+
+window.addEventListener('resize', () => { renderAll(); renderHistorisk(); });
+
+/* ============================================================
+   1) OPPMØTE PR SKOLE
+   ============================================================ */
+function renderSkole(){
+  const rows = filteredData().filter(r => r.kategori === 'Foreldre' && r.mott !== null);
+  const perSkole = SKOLE_ORDER.map(sk => {
+    const rs = rows.filter(r => r.skole === sk);
+    const innkalt = rs.reduce((a,r)=>a+(r.innkalt||0),0);
+    const mott = rs.reduce((a,r)=>a+(r.mott||0),0);
+    return pct(mott, innkalt);
+  });
+  const totalInnkalt = rows.reduce((a,r)=>a+(r.innkalt||0),0);
+  const totalMott = rows.reduce((a,r)=>a+(r.mott||0),0);
+  const samlet = pct(totalMott, totalInnkalt);
+
+  const f = currentFilter();
+  document.getElementById('skoleSub').textContent = f.sesong + ' · ' + (f.fra||'') + ' – ' + (f.til||'');
+
+  drawBarChart('chartSkole', {
+    labels: SKOLE_ORDER, values: perSkole, suffix: ' %', color: GUL,
+    maxY: 100, refValue: samlet, refLabel: 'Samlet oppmøte: ' + samlet + ' %'
+  });
+}
+
+/* ============================================================
+   2) OPPMØTE PR RAVNING
+   ============================================================ */
+function renderRavning(){
+  const rows = filteredData();
+  const f = currentFilter();
+  document.getElementById('ravningSub').textContent = 'Antall møtt pr vaktdato · ' + f.sesong;
+
+  const datoer = [...new Set(rows.map(r=>r.dato))].sort();
+  const kategorier = ['Foreldre','Frivillige','MC ravn'];
+
+  const legend = document.getElementById('ravningLegend');
+  legend.innerHTML = kategorier.map(k => `<span><span class="legend-dot" style="background:${FARGER_KATEGORI[k]}"></span>${k}</span>`).join('');
+
+  const series = kategorier.map(k => ({
+    name: k, color: FARGER_KATEGORI[k],
+    values: datoer.map(d => {
+      const rs = rows.filter(r => r.dato === d && r.kategori === k);
+      if(!rs.length) return null;
+      return rs.reduce((a,r)=>a+(r.mott||0),0);
+    })
+  }));
+
+  drawLineChart('chartRavning', { labels: datoer, series });
+
+  const tbody = document.querySelector('#ravningTabell tbody');
+  tbody.innerHTML = '';
+  let totInnkalt=0, totMott=0, totVakter=0;
+  kategorier.forEach(k => {
+    const rs = rows.filter(r => r.kategori === k);
+    const innkalt = rs.reduce((a,r)=>a+(r.innkalt||0),0);
+    const mottRows = rs.filter(r => r.mott !== null);
+    const mott = mottRows.reduce((a,r)=>a+(r.mott||0),0);
+    const vakter = new Set(mottRows.map(r=>r.dato)).size;
+    const snitt = vakter ? Math.round((mott/vakter)*10)/10 : 0;
+    totInnkalt += innkalt; totMott += mott; totVakter += vakter;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${k}</td><td class="num">${innkalt||'–'}</td><td class="num">${mott}</td><td class="num">${snitt}</td>`;
+    tbody.appendChild(tr);
+  });
+  const totSnitt = totVakter ? Math.round((totMott/totVakter)*10)/10 : 0;
+  const trTot = document.createElement('tr');
+  trTot.className = 'total';
+  trTot.innerHTML = `<td>Totalt</td><td class="num">${totInnkalt}</td><td class="num">${totMott}</td><td class="num">${totSnitt}</td>`;
+  tbody.appendChild(trTot);
+}
+
+/* ============================================================
+   3) OPPMØTE PR UKEDAG
+   ============================================================ */
+const UKEDAG_ORDER = ['Mandag','Tirsdag','Onsdag','Torsdag','Fredag','Lørdag','Søndag'];
+
+function renderUkedag(){
+  const rows = filteredData().filter(r => r.kategori === 'Foreldre' && r.mott !== null);
+  const tilstedeUkedager = UKEDAG_ORDER.filter(u => rows.some(r=>r.ukedag===u));
+
+  const prosentData = tilstedeUkedager.map(u => {
+    const rs = rows.filter(r=>r.ukedag===u);
+    const innkalt = rs.reduce((a,r)=>a+(r.innkalt||0),0);
+    const mott = rs.reduce((a,r)=>a+(r.mott||0),0);
+    return pct(mott, innkalt);
+  });
+  const antallData = tilstedeUkedager.map(u => rows.filter(r=>r.ukedag===u).reduce((a,r)=>a+(r.mott||0),0));
+
+  drawBarChart('chartUkedagProsent', { labels: tilstedeUkedager, values: prosentData, suffix: ' %', color: GUL, maxY: 100 });
+  drawBarChart('chartUkedagAntall', { labels: tilstedeUkedager, values: antallData, color: GUL });
+}
+
+/* ============================================================
+   4) HISTORISK OPPMØTE
+   ============================================================ */
+function avg(arr){ return arr.length ? Math.round((arr.reduce((a,b)=>a+b,0)/arr.length)*10)/10 : 0; }
+
+function renderHistorisk(){
+  const fra = document.getElementById('histFra').value;
+  const til = document.getElementById('histTil').value;
+  const semHost = document.getElementById('semHost').checked;
+  const semVar = document.getElementById('semVar').checked;
+
+  const rows = DATA.filter(r => r.kategori === 'Foreldre' && r.mott !== null
+    && (!fra || r.dato >= fra) && (!til || r.dato <= til)
+    && ((r.semester==='Høst' && semHost) || (r.semester==='Vår' && semVar)));
+
+  const seasons = SESONG_ORDER.filter(s => rows.some(r=>r.sesong===s));
+  const perSeason = seasons.map(s => {
+    const rs = rows.filter(r=>r.sesong===s);
+    const innkalt = rs.reduce((a,r)=>a+(r.innkalt||0),0);
+    const mott = rs.reduce((a,r)=>a+(r.mott||0),0);
+    return pct(mott, innkalt);
+  });
+
+  drawBarChart('chartHistorisk', { labels: seasons, values: perSeason, suffix: ' %', color: GUL });
+
+  const varSnitt = avg(seasons.map((s,i)=>({s,v:perSeason[i]})).filter(o=>o.s.startsWith('Vår')).map(o=>o.v));
+  const hostSnitt = avg(seasons.map((s,i)=>({s,v:perSeason[i]})).filter(o=>o.s.startsWith('Høst')).map(o=>o.v));
+
+  drawBarChart('chartHistoriskSemester', { labels: ['Vår','Høst'], values: [varSnitt, hostSnitt], suffix: ' %', color: GUL });
+}
+
+/* ============================================================
+   5) MC-RAVNING
+   ============================================================ */
+function renderMc(){
+  const mcAll = DATA.filter(r => r.kategori === 'MC ravn' && r.mott !== null);
+  const seasons = SESONG_ORDER.filter(s => mcAll.some(r=>r.sesong===s));
+  const perSeason = seasons.map(s => mcAll.filter(r=>r.sesong===s).reduce((a,r)=>a+(r.mott||0),0));
+
+  drawBarChart('chartMcHalvaar', { labels: seasons, values: perSeason, color: GUL });
+
+  const rowsFiltered = filteredData().filter(r => r.kategori === 'MC ravn' && r.mott !== null);
+  const f = currentFilter();
+  document.getElementById('mcUkedagSub').textContent = f.sesong;
+  const tilstedeUkedager = UKEDAG_ORDER.filter(u => rowsFiltered.some(r=>r.ukedag===u));
+  const antallUkedag = tilstedeUkedager.map(u => rowsFiltered.filter(r=>r.ukedag===u).reduce((a,r)=>a+(r.mott||0),0));
+  drawBarChart('chartMcUkedag', { labels: tilstedeUkedager, values: antallUkedag, color: GUL });
+
+  document.getElementById('mcTidSub').textContent = f.sesong + ' · ' + (f.fra||'') + ' – ' + (f.til||'');
+  const datoer = [...new Set(rowsFiltered.map(r=>r.dato))].sort();
+  const verdier = datoer.map(d => rowsFiltered.filter(r=>r.dato===d).reduce((a,r)=>a+(r.mott||0),0));
+  drawLineChart('chartMcTid', { labels: datoer, series: [{name:'MC ravn', color: GUL, values: verdier}] });
+}
+
+/* ============================================================
+   RENDER ALT
+   ============================================================ */
+function renderAll(){
+  renderSkole();
+  renderRavning();
+  renderUkedag();
+  renderMc();
+}
+renderAll();
+renderHistorisk();
+</script>
+</body>
+</html>
