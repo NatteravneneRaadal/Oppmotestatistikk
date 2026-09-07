@@ -1,0 +1,41 @@
+name: Oppdater statistikk fra Excel
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'source-data/factStatistikk.xlsx'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  oppdater-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sjekk ut repository
+        uses: actions/checkout@v4
+
+      - name: Sett opp Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Installer avhengigheter
+        run: pip install openpyxl
+
+      - name: Generer data.js fra Excel-filen
+        run: python3 scripts/generate_data.py
+
+      - name: Commit og push data.js hvis den er endret
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if ! git diff --quiet -- data.js; then
+            git add data.js
+            git commit -m "Automatisk oppdatering av statistikk fra Excel"
+            git push
+          else
+            echo "Ingen endringer i data.js - hopper over commit."
+          fi
