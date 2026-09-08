@@ -104,6 +104,20 @@ def main():
     }
 
     compact = json.dumps(out, ensure_ascii=False, separators=(',', ':'))
+    # Formater 'rows' over flere kortere linjer (i stedet for én svært lang linje)
+    # - dette er lettere for ulike verktøy/forhåndsvisninger å håndtere.
+    rows_json = out['rows']
+    chunk_size = 15
+    chunk_lines = []
+    for i in range(0, len(rows_json), chunk_size):
+        chunk = rows_json[i:i + chunk_size]
+        chunk_lines.append(','.join(json.dumps(r, separators=(',', ':')) for r in chunk))
+    rows_str = '[\n' + ',\n'.join(chunk_lines) + '\n]'
+
+    meta = {k: v for k, v in out.items() if k != 'rows'}
+    meta_str = json.dumps(meta, ensure_ascii=False, separators=(',', ':'))
+    compact = meta_str[:-1] + ',"rows":' + rows_str + '}'
+
     js_content = (
         "// Datakilde for Natteravnene Rådal - statistikk\n"
         "// Denne filen genereres automatisk fra source-data/factStatistikk.xlsx\n"
