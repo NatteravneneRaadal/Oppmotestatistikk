@@ -640,7 +640,7 @@ function renderRavning(){
   const series = kategorier.map(k => ({
     name: k, color: FARGER_KATEGORI[k],
     values: datoer.map(d => {
-      const rs = rows.filter(r => r.dato === d && r.kategori === k);
+      const rs = rows.filter(r => r.dato === d && r.kategori === k && r.mott !== null);
       if(!rs.length) return null;
       return rs.reduce((a,r)=>a+(r.mott||0),0);
     })
