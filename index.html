@@ -42,27 +42,39 @@
   header.topbar h1 { font-size: 20px; margin: 0; font-weight: 600; }
   header.topbar .subtitle { font-size: 13px; color: #C8C8C8; margin-top: 2px; }
 
-  nav.tabs {
+  nav.jump {
     display: flex;
-    gap: 4px;
-    padding: 0 32px;
+    gap: 6px;
+    padding: 12px 32px;
     background: #fff;
     border-bottom: 1px solid var(--lysgra);
     overflow-x: auto;
+    position: sticky;
+    top: 0;
+    z-index: 10;
   }
-  nav.tabs button {
-    border: none;
-    background: none;
-    padding: 16px 18px;
-    font-size: 14.5px;
+  nav.jump a {
+    border: 1px solid var(--lysgra);
+    background: var(--bakgrunn);
+    padding: 7px 14px;
+    border-radius: 20px;
+    font-size: 13.5px;
     font-weight: 600;
     color: var(--gra);
     cursor: pointer;
-    border-bottom: 3px solid transparent;
     white-space: nowrap;
+    text-decoration: none;
   }
-  nav.tabs button:hover { color: var(--morkgra); }
-  nav.tabs button.active { color: var(--morkgra); border-bottom-color: var(--gul); }
+  nav.jump a:hover { color: var(--morkgra); border-color: var(--gul); background: #FFFBE6; }
+
+  .seksjon-tittel {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 40px 0 16px;
+    color: var(--morkgra);
+    scroll-margin-top: 70px;
+  }
+  .seksjon-tittel:first-of-type { margin-top: 0; }
 
   main { padding: 24px 32px 60px; max-width: 1400px; margin: 0 auto; }
 
@@ -111,8 +123,7 @@
   table.stat-table td.num, table.stat-table th.num { text-align: right; }
   table.stat-table tr.total td { font-weight: 700; }
 
-  .tabpage { display: none; }
-  .tabpage.active { display: block; }
+  .tabpage { display: block; margin-bottom: 8px; }
 
   footer { text-align: center; padding: 24px; font-size: 12px; color: #A3A3A3; }
 
@@ -134,12 +145,12 @@
   <div class="subtitle" id="generertVisning"></div>
 </header>
 
-<nav class="tabs" id="tabNav">
-  <button data-tab="skole" class="active">Oppmøte pr skole</button>
-  <button data-tab="ravning">Oppmøte pr ravning</button>
-  <button data-tab="ukedag">Oppmøte pr ukedag</button>
-  <button data-tab="historisk">Historisk oppmøte</button>
-  <button data-tab="mc">MC-ravning</button>
+<nav class="jump">
+  <a href="#tab-skole">Oppmøte pr skole</a>
+  <a href="#tab-ravning">Oppmøte pr ravning</a>
+  <a href="#tab-ukedag">Oppmøte pr ukedag</a>
+  <a href="#tab-historisk">Historisk oppmøte</a>
+  <a href="#tab-mc">MC-ravning</a>
 </nav>
 
 <main>
@@ -159,7 +170,8 @@
     </div>
   </div>
 
-  <section class="tabpage active" id="tab-skole">
+  <h2 class="seksjon-tittel">Oppmøte pr skole</h2>
+  <section class="tabpage" id="tab-skole">
     <div class="card">
       <h2>Oppmøte pr skole</h2>
       <div class="card-sub" id="skoleSub"></div>
@@ -167,6 +179,7 @@
     </div>
   </section>
 
+  <h2 class="seksjon-tittel">Oppmøte pr ravning</h2>
   <section class="tabpage" id="tab-ravning">
     <div class="card" style="margin-bottom:20px;">
       <h2>Oppmøte pr ravning</h2>
@@ -184,6 +197,7 @@
     </div>
   </section>
 
+  <h2 class="seksjon-tittel">Oppmøte pr ukedag</h2>
   <section class="tabpage" id="tab-ukedag">
     <div class="panel-grid two">
       <div class="card">
@@ -199,6 +213,7 @@
     </div>
   </section>
 
+  <h2 class="seksjon-tittel">Historisk oppmøte</h2>
   <section class="tabpage" id="tab-historisk">
     <div class="card-sub" style="margin-bottom: 10px; color: var(--gra); font-size:13px;">
       Historikken bruker eget datofilter (alle sesonger vises uavhengig av sesongvalg over).
@@ -234,6 +249,7 @@
     </div>
   </section>
 
+  <h2 class="seksjon-tittel">MC-ravning</h2>
   <section class="tabpage" id="tab-mc">
     <div class="panel-grid two" style="margin-bottom:20px;">
       <div class="card">
@@ -573,16 +589,6 @@ document.getElementById('histFra').addEventListener('change', renderHistorisk);
 document.getElementById('histTil').addEventListener('change', renderHistorisk);
 document.getElementById('semHost').addEventListener('change', renderHistorisk);
 document.getElementById('semVar').addEventListener('change', renderHistorisk);
-
-document.querySelectorAll('#tabNav button').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('#tabNav button').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    document.querySelectorAll('.tabpage').forEach(p => p.classList.remove('active'));
-    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
-    renderAll(); renderHistorisk();
-  });
-});
 
 window.addEventListener('resize', () => { renderAll(); renderHistorisk(); });
 
