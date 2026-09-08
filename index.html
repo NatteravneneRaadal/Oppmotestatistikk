@@ -553,7 +553,7 @@ function filteredData(){
 function pct(mott, innkalt){ if(!innkalt) return 0; return Math.round((mott/innkalt)*1000)/10; }
 
 const sesongSelect = document.getElementById('sesongSelect');
-SESONG_ORDER.forEach(s => {
+[...SESONG_ORDER].reverse().forEach(s => {
   const opt = document.createElement('option');
   opt.value = s; opt.textContent = s;
   sesongSelect.appendChild(opt);
