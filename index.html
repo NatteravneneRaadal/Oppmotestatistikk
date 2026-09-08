@@ -569,11 +569,18 @@ function seasonBounds(sesong){
   if(!rows.length) return null;
   let min = rows[0].dato, max = rows[0].dato;
   rows.forEach(r => { if(r.dato < min) min = r.dato; if(r.dato > max) max = r.dato; });
-  return {min, max};
+
+  // "til" skal som standard være siste dato med registrert Møtt-data i sesongen,
+  // ikke siste planlagte vaktdato (som kan ligge langt frem i tid uten data ennå).
+  const rowsMedMott = rows.filter(r => r.mott !== null);
+  let sisteMedData = null;
+  rowsMedMott.forEach(r => { if(sisteMedData === null || r.dato > sisteMedData) sisteMedData = r.dato; });
+
+  return {min, max, sisteMedData: sisteMedData !== null ? sisteMedData : max};
 }
 function applySeasonToDateInputs(){
   const b = seasonBounds(sesongSelect.value);
-  if(b){ document.getElementById('datoFra').value = b.min; document.getElementById('datoTil').value = b.max; }
+  if(b){ document.getElementById('datoFra').value = b.min; document.getElementById('datoTil').value = b.sisteMedData; }
 }
 applySeasonToDateInputs();
 
